@@ -122,11 +122,12 @@ architecture Behavioral of gpmc_wishbone is
 	signal wb_clk_en : std_logic;
 
 	--Flag signals for WISHBONE state machine
-	signal wishbone_write 	: std_logic := '0';
-	signal wb_write_req 	: std_logic := '0';
-	signal WISHBONE_READ		: std_logic := '0';
-	signal wb_write_end			: std_logic := '0';
-	signal WISHBONE_READ_END	: std_logic := '0';
+	signal wb_write_req	: std_logic := '0';
+	signal wb_write 		: std_logic := '0';
+	signal wb_write_end	: std_logic := '0';
+	signal wb_read_req  : std_logic := '0';
+	signal wb_read  		: std_logic := '0';
+	signal wb_read_end 	: std_logic := '0';
 
 begin
 
@@ -166,7 +167,7 @@ begin
 			if (gpmc_n_adv_ale = '0') then
 					gpmc_address <= gpmc_a & gpmc_d;   -- Address of 16 bit word
 					wb_write_req <= '0';
-					WISHBONE_READ	<= '0';
+					wb_read_req   <= '0';
 
 				--Second cycle of the bus is read or write
 				--CHECK FOR READ
@@ -183,7 +184,7 @@ begin
 						--gpmc_data_o <= (others => '0');
 				end case;
 					-- read from WISHBONE
-					WISHBONE_READ	<= '1';
+					wb_read_req   <= '1';
 
 				--CHECK FOR WRITE
 			elsif (gpmc_n_we = '0') then
@@ -201,12 +202,12 @@ begin
 				--OTHER CONDITION
 			else
 				wb_write_req <= '0';
-				WISHBONE_READ	<= '0';
+				wb_read_req   <= '0';
 			end if;
 		end if;
    else
 		wb_write_req <= '0';
-		WISHBONE_READ	<= '0';
+		wb_read_req   <= '0';
 	end if;
 end process;
 
@@ -218,7 +219,7 @@ end process;
 	variable cycle_counter : unsigned (2 downto 0) := "000";
 	begin
 		if rising_edge ( wb_clk_sig ) then
-			if wishbone_write = '1' then
+			if wb_write = '1' then
 				if cycle_counter < 2 then
 					wb_clk_en <= '1';
 					if cycle_counter = "000" then
@@ -234,11 +235,31 @@ end process;
 					end if;
 					cycle_counter := cycle_counter + "001";
 				end if;
+			elsif wb_read  = '1' then
+				if cycle_counter < 2 then
+					wb_clk_en <= '1';
+					if cycle_counter = "000" then
+						--gpmc_data_o <= wb_reg_test_sig; -- only used for testing module w/o wb-slave connected
+						gpmc_data_o <= DAT_I(15 downto 0); --uncommenting this will cause test to fail...
+						STB_O <= '1';
+						WE_O	<= '0';
+						wb_read_end<= '0';
+					elsif cycle_counter = "001" then
+						DAT_O	<= (others => 'X');
+						STB_O <= '0';
+						WE_O	<= '0';
+						wb_read_end<= '1';
+					end if;
+					cycle_counter := cycle_counter + "001";
+				end if;
 			else
 				wb_clk_en <= '0';
 				cycle_counter := "000";
 				if wb_write_req = '0' then
 					wb_write_end<= '0';
+				end if;
+				if wb_read_req = '0' then
+					wb_read_end<= '0';
 				end if;
 				DAT_O	<= (others => 'X');
 				STB_O <= '0';
@@ -248,7 +269,8 @@ end process;
 	end process;
 
 	CLK 	<= wb_clk_sig when wb_clk_en = '1' else '0';
-	wishbone_write <= wb_write_req and (not wb_write_end);
+	wb_write <= wb_write_req and (not wb_write_end);
+	wb_read  <= wb_read_req and (not wb_read_end);
 ------------------------------------------------------------------------------------
 -- Manage the tri-state bus
 ---------------------------------------------------------------------------------

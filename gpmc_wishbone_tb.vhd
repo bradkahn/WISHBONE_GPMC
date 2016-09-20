@@ -75,7 +75,7 @@ ARCHITECTURE behavior OF gpmc_wishbone_tb IS
    signal gpmc_n_adv_ale : std_logic := '0';
    signal gpmc_n_wp : std_logic := '0';
    signal ACK_I : std_logic := '0';
-   signal DAT_I : std_logic_vector(31 downto 0) := (others => '0');
+   signal DAT_I : std_logic_vector(31 downto 0) := (others => 'X');
    signal RST_I : std_logic := '0';
    signal gpio_in : std_logic_vector(7 downto 0);
 
@@ -91,20 +91,20 @@ ARCHITECTURE behavior OF gpmc_wishbone_tb IS
    signal DAT_O : std_logic_vector(31 downto 0);
    signal STB_O : std_logic;
    signal WE_O : std_logic;
-	
+
 	signal gpmc_fclk : std_logic; -- runs at 2x speed of gpmc_clk
-	signal sys_clk_P : std_logic; 
+	signal sys_clk_P : std_logic;
    -- Clock period definitions
    --constant gpmc_clk_i_period : time := 20 ns;
 	constant gpmc_fclk_period : time := 20 ns;
 	constant sys_clk_period		: time := 5 ns;
-	
+
 	-- Constants for dummy data
 	constant ADDRESS_A 	: std_logic_vector (9 downto 0)	:= "0000000000"; -- address 0 (reg_count)
 	constant ADDRESS_D 	: std_logic_vector (15 downto 0) := "0000000000000000";
 	constant ADDRESS		: std_logic_vector (25 downto 0) := ADDRESS_A & ADDRESS_D;
 	constant DUMMY_DATA	: std_logic_vector (15 downto 0) := "0000000010100011";
-	
+
 
 BEGIN
 
@@ -133,7 +133,7 @@ BEGIN
           WE_O => WE_O
         );
 
-	
+
 
    -- Clock process definitions
 	gpmc_fclk_proc : process
@@ -141,17 +141,17 @@ BEGIN
 		gpmc_fclk <= '0';
 		wait for gpmc_fclk_period/2;
 		gpmc_fclk <= '1';
-		wait for gpmc_fclk_period/2;	
+		wait for gpmc_fclk_period/2;
 	end process;
-	
+
 	sys_clk_proc : process
 	begin
 		sys_clk_P <= '0';
 		wait for sys_clk_period/2;
 		sys_clk_P <= '1';
-		wait for sys_clk_period/2;	
+		wait for sys_clk_period/2;
 	end process;
-	
+
 --   gpmc_clk_i_proc :process
 --   begin
 --		gpmc_clk_i <= '0';
@@ -165,8 +165,8 @@ BEGIN
    begin
 		report "STARTING STIMULATION" severity NOTE;
 		report "---------------------------------------------------------";
-		report "Initialising Inputs";	
-		report "---------------------------------------------------------";		
+		report "Initialising Inputs";
+		report "---------------------------------------------------------";
 		-- init
 		gpmc_n_cs <= "1111111";
 		gpmc_n_oe <= '1';
@@ -175,13 +175,13 @@ BEGIN
 		gpmc_n_adv_ale <= '1';
 		gpmc_a <= (others => '1');
 		gpmc_d <= "ZZZZZZZZZZZZZZZZ";
-      
+
 		-- hold reset state for 50 ns.
       wait for 50 ns;
-		
+
 		gpio_in <= "00000000";
       wait for gpmc_fclk_period*10;
-		
+
 		--pull RST high for a cycle
 		report "Asserting RST for 20 ns" severity NOTE;
 		gpio_in(0) <= '1';
@@ -194,7 +194,7 @@ BEGIN
 		--wait for gpmc_clk_i_period;
 		wait for 20 ns;
 		report "---------------------------------------------------------";
-		
+
 		------------------------------------------------------------------------
 		-- WRITE OPERATION
 		-- TAKES 6 GPMC_FCLK CYCLES
@@ -208,10 +208,10 @@ BEGIN
 		gpmc_n_we <= '1';
 		gpmc_n_oe <= '1';
 		gpmc_n_adv_ale <= '1';
-		gpmc_a <= ADDRESS_A; 
+		gpmc_a <= ADDRESS_A;
 		gpmc_d <= ADDRESS_D;
 		wait for gpmc_fclk_period;
-		
+
 		report "time 1";
 		gpmc_clk_i <= '0';
 		gpmc_n_cs <= "1111110";
@@ -220,7 +220,7 @@ BEGIN
 		gpmc_n_adv_ale <= '0';
 		--gpmc_d <= "0000000000000000";
 		wait for gpmc_fclk_period;
-		
+
 		report "time 2 - FPGA READS ADDR";
 		gpmc_clk_i <= '1';
 		gpmc_n_cs <="1111110";
@@ -229,7 +229,7 @@ BEGIN
 		gpmc_n_adv_ale <= '0';
 		--gpmc_d <= "0000000000000000";
 		wait for gpmc_fclk_period;
-		
+
 		report "time 3 - ARM WRITES DATA";
 		gpmc_clk_i <= '0';
 		gpmc_n_cs <= "1111110";
@@ -238,7 +238,7 @@ BEGIN
 		gpmc_n_adv_ale <= '1';
 		gpmc_d <= DUMMY_DATA; -- data being sent to fpga
 		wait for gpmc_fclk_period;
-		
+
 		report "time 4 - FPGA READS DATA";
 		gpmc_clk_i <= '1';
 		gpmc_n_cs <= "1111110";
@@ -248,7 +248,7 @@ BEGIN
 		gpmc_a <= (others => 'X');
 		--gpmc_d <= "0000000010100011";
 		wait for gpmc_fclk_period;
-		
+
 		report "time 5";
 		gpmc_clk_i <= '0';
 		gpmc_n_cs <=  "1111111"; -- select nothing
@@ -258,7 +258,7 @@ BEGIN
 		gpmc_a <= (others => 'X');
 		gpmc_d <= (others => 'X');
 		wait for gpmc_fclk_period;
-		
+
 --		report "time 6";
 --		gpmc_clk_i <= '1';
 --		gpmc_n_cs <=  "1111111";
@@ -268,7 +268,7 @@ BEGIN
 --		gpmc_a <= (others => '0');
 --		gpmc_d <= (others => 'Z');
 --		wait for gpmc_fclk_period;
-		
+
 		gpmc_clk_i<= '0';
 		report "---------------------------------------------------------";
 		wait for gpmc_fclk_period*3;
@@ -286,15 +286,15 @@ BEGIN
 		gpmc_a <= ADDRESS_A; -- address 0 (reg_count)
 		gpmc_d <= ADDRESS_D;
 		wait for gpmc_fclk_period;
-		
+
 		report "time 1";
 		gpmc_n_adv_ale <= '0';
 		wait for gpmc_fclk_period;
-		
+
 		report "time 2 - FPGA READS ADDRESS";
 		gpmc_clk_i <= '1';
 		wait for gpmc_fclk_period;
-		
+
 		report "time 3 - ARM RELEASES ADDRESS BUS";
 		gpmc_clk_i <= '0';
 		gpmc_n_adv_ale <= '1';
@@ -302,32 +302,34 @@ BEGIN
 		gpmc_a <= (others => 'X');
 		gpmc_d <= (others => 'Z');
 		wait for gpmc_fclk_period;
-		
+
 		report "time 4 - FPGA WRITES DATA";
 		gpmc_clk_i <= '1';
+    DAT_I <= "0000000000000000" & DUMMY_DATA;
 		wait for gpmc_fclk_period;
 		-- CHECK DATA LINE gpmc_d is correct value stored at location 0000000000
 		assert gpmc_d = DUMMY_DATA report "__ERROR: gpmc_d HAS INCORRECT VALUE. IT SHOULD = DUMMY_DATA" severity ERROR;
 		assert gpmc_d /= DUMMY_DATA report "__gpmc_d has correct value" severity NOTE;
-		
+
 		report "time 5 - ARM READS DATA";
+    --DAT_I <= "00000000000000000000000000000000";
 		gpmc_clk_i <= '0';
 		gpmc_n_cs <=  "1111111";
 		gpmc_n_oe <= '0';
 		wait for gpmc_fclk_period;
-		
+
 		report "time 6 - FPGA RELEASES DATA BUS";
 		gpmc_clk_i <= '1';
 		gpmc_d <= (others => 'Z'); -- check if this is done by vhdl
 		wait for gpmc_fclk_period;
-		
+
 		report "time 7";
 		gpmc_clk_i <= '0';
-			
+
 		report "---------------------------------------------------------";
-		
-		
-		
+
+
+
 		report "END STIMULATION" severity NOTE;
       wait;
    end process;
