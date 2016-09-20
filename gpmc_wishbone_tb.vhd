@@ -96,8 +96,8 @@ ARCHITECTURE behavior OF gpmc_wishbone_tb IS
 	signal sys_clk_P : std_logic; 
    -- Clock period definitions
    --constant gpmc_clk_i_period : time := 20 ns;
-	constant gpmc_fclk_period : time := 30 ns;
-	constant sys_clk_period		: time := 10 ns;
+	constant gpmc_fclk_period : time := 20 ns;
+	constant sys_clk_period		: time := 5 ns;
 	
 	-- Constants for dummy data
 	constant ADDRESS_A 	: std_logic_vector (9 downto 0)	:= "0000000000"; -- address 0 (reg_count)
@@ -185,9 +185,9 @@ BEGIN
 		--pull RST high for a cycle
 		report "Asserting RST for 20 ns" severity NOTE;
 		gpio_in(0) <= '1';
-		assert RST = '0' report "FAIL: WB RST OUPTUT NOT LOW" severity ERROR;
-		assert CLK = '0' report "FAIL: WB CLK OUTPUT NOT LOW" severity ERROR;
-		assert ( CLK = '1' AND RST = '1' ) report "__PASS" severity NOTE;
+		wait for 5 ns;
+		assert RST = '1' report "FAIL: WB RST OUTPUT NOT HIGH" severity ERROR;
+		assert RST = '0'  report "__PASS" severity NOTE;
 		--wait for gpmc_clk_i_period;
 		wait for 20 ns;
 		gpio_in(0) <= '0';
