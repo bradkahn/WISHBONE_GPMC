@@ -49,7 +49,7 @@ use IEEE.NUMERIC_STD.ALL;
 
 -- Uncomment the following library declaration if using
 -- arithmetic functions with Signed or Unsigned values
---use IEEE.NUMERIC_STD.ALL;
+use IEEE.NUMERIC_STD.ALL;
 
 -- Uncomment the following library declaration if instantiating
 -- any Xilinx primitives in this code.
@@ -98,7 +98,6 @@ architecture Behavioral of gpmc_wishbone is
 -- Declare types
 ------------------------------------------------------------------------------------
 	type ram_type is array (31 downto 0) of std_logic_vector(15 downto 0);   -- 32 X 16 memory block
-	type state_type is (LATCH_ADDRESS, STORE_GPMC_DATA_I, WB_WRITE, WB_READ, STORE_GPMC_DATA_O);
 
 ------------------------------------------------------------------------------------
 -- Declare signals
@@ -123,11 +122,11 @@ architecture Behavioral of gpmc_wishbone is
 	signal wb_clk_en : std_logic;
 
 	--Flag signals for WISHBONE state machine
-	signal WISHBONE_WRITE 	: std_logic := '0';
+	signal wishbone_write 	: std_logic := '0';
+	signal wb_write_req 	: std_logic := '0';
 	signal WISHBONE_READ		: std_logic := '0';
-
-	-- Define signal to for state
-	signal state : state_type := LATCH_ADDRESS; -- Initialize state to LATCH_ADDRESS
+	signal wb_write_end			: std_logic := '0';
+	signal WISHBONE_READ_END	: std_logic := '0';
 
 begin
 
@@ -166,7 +165,7 @@ begin
 				--RECORD THE ADDRESS
 			if (gpmc_n_adv_ale = '0') then
 					gpmc_address <= gpmc_a & gpmc_d;   -- Address of 16 bit word
-					WISHBONE_WRITE <= '0';
+					wb_write_req <= '0';
 					WISHBONE_READ	<= '0';
 
 				--Second cycle of the bus is read or write
@@ -188,7 +187,7 @@ begin
 
 				--CHECK FOR WRITE
 			elsif (gpmc_n_we = '0') then
-				WISHBONE_WRITE 	<= '1';
+				wb_write_req 	<= '1';
 				case to_integer(unsigned(reg_bank_address)) is --might be irrelevent once WB_ADDRESS signal is used TODO ...
 					when 0 =>
 						--wb_reg_test_sig  <= gpmc_data_i;
@@ -201,79 +200,55 @@ begin
 
 				--OTHER CONDITION
 			else
-				WISHBONE_WRITE <= '0';
+				wb_write_req <= '0';
 				WISHBONE_READ	<= '0';
 			end if;
 		end if;
    else
-		WISHBONE_WRITE <= '0';
+		wb_write_req <= '0';
 		WISHBONE_READ	<= '0';
 	end if;
 end process;
-
------------------------------------------------------------------------------------
--- WISHBONE FSM
------------------------------------------------------------------------------------
-
--- triggers whenever WISHBONE_WRITE or WISHBONE_READ goes HIGH
-WISHBONE_FSM: process(wb_clk_sig)
-begin
-	if rising_edge (wb_clk_sig) then
-		case ( state ) is
-			when LATCH_ADDRESS =>
-				STB_O <= '0';
-				WE_O	<= '0';
-				wb_clk_en 	<= '0';
-				if  (WISHBONE_WRITE = '1') then
-					--CLK <= wb_clk_sig;
-					-- set state to write
-					state <= WB_WRITE;
-					wb_clk_en 	<= '1';
-					DAT_O	<= x"0000" & gpmc_data_i;
-					STB_O <= '1';
-					WE_O	<= '1';
-				elsif (WISHBONE_READ = '1') then
-					-- set state to read
-					state <= WB_READ;
-					wb_clk_en 	<= '1';
-					gpmc_data_o <= DAT_I(15 downto 0);
-					STB_O <= '1';
-					WE_O	<= '0';
-				else
-					-- otherwise, stay in this state
-					state <= LATCH_ADDRESS;
-				end if;
-			when WB_WRITE =>
-				-- assert WB lines to write to slave
---				DAT_O	<= x"0000" & gpmc_data_i;
---				STB_O <= '1';
---				WE_O	<= '1';
-				wb_clk_en 	<= '0';
-				state <= LATCH_ADDRESS;
-			when WB_READ =>
-				-- assert WB lines to read from slave
-				--wb_reg_test_sig <= DAT_I(15 downto 0);
-				--gpmc_data_o <= wb_reg_test_sig; -- only used for testing module w/o wb-slave connected
---				gpmc_data_o <= DAT_I(15 downto 0);
---				STB_O <= '1';
---				WE_O	<= '0';
-				wb_clk_en 	<= '0';
-				state <= LATCH_ADDRESS;
-			when OTHERS =>
-				DAT_O	<= x"00000000";
-				STB_O <= '0';
-				WE_O	<= '0';
-				wb_clk_en 	<= '0';
-				state <= LATCH_ADDRESS;
-		end case;
-	end if;
-end process ;
 
 ------------------------------------------------------------------------------------
 -- WISHBONE CLK & RST SIGNALS
 ------------------------------------------------------------------------------------
 	RST	<= wb_rst_sig;
+	wb_clk_process: process(wb_clk_sig)
+	variable cycle_counter : unsigned (2 downto 0) := "000";
+	begin
+		if rising_edge ( wb_clk_sig ) then
+			if wishbone_write = '1' then
+				if cycle_counter < 2 then
+					wb_clk_en <= '1';
+					if cycle_counter = "000" then
+						DAT_O	<= x"0000" & gpmc_data_i;
+						STB_O <= '1';
+						WE_O	<= '1';
+						wb_write_end<= '0';
+					elsif cycle_counter = "001" then
+						DAT_O	<= (others => 'X');
+						STB_O <= '0';
+						WE_O	<= '0';
+						wb_write_end<= '1';
+					end if;
+					cycle_counter := cycle_counter + "001";
+				end if;
+			else
+				wb_clk_en <= '0';
+				cycle_counter := "000";
+				if wb_write_req = '0' then
+					wb_write_end<= '0';
+				end if;
+				DAT_O	<= (others => 'X');
+				STB_O <= '0';
+				WE_O	<= '0';
+			end if;
+		end if;
+	end process;
+
 	CLK 	<= wb_clk_sig when wb_clk_en = '1' else '0';
+	wishbone_write <= wb_write_req and (not wb_write_end);
 ------------------------------------------------------------------------------------
 -- Manage the tri-state bus
 ---------------------------------------------------------------------------------
