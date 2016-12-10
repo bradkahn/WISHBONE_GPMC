@@ -32,8 +32,8 @@ ARCHITECTURE behavioral OF top_level_schematic_top_level_schematic_sch_tb IS
           gpio_in	:	IN	STD_LOGIC_VECTOR (7 DOWNTO 0);
           gpmc_d	:	INOUT	STD_LOGIC_VECTOR (15 DOWNTO 0);
           gpio_o	:	OUT	STD_LOGIC_VECTOR (7 DOWNTO 0);
-          PRT_O	:	OUT	STD_LOGIC_VECTOR (7 DOWNTO 0);
-          DAT_I	:	IN	STD_LOGIC_VECTOR (31 DOWNTO 8));
+          PRT_O	:	OUT	STD_LOGIC_VECTOR (15 DOWNTO 0)
+          );
    END COMPONENT;
 
    SIGNAL gpmc_clk_i	:	STD_LOGIC;
@@ -46,8 +46,8 @@ ARCHITECTURE behavioral OF top_level_schematic_top_level_schematic_sch_tb IS
    SIGNAL gpio_in	:	STD_LOGIC_VECTOR (7 DOWNTO 0);
    SIGNAL gpmc_d	:	STD_LOGIC_VECTOR (15 DOWNTO 0);
    SIGNAL gpio_o	:	STD_LOGIC_VECTOR (7 DOWNTO 0);
-   SIGNAL PRT_O	:	STD_LOGIC_VECTOR (7 DOWNTO 0);
-   SIGNAL DAT_I	:	STD_LOGIC_VECTOR (31 DOWNTO 8);
+   SIGNAL PRT_O	:	STD_LOGIC_VECTOR (15 DOWNTO 0);
+   SIGNAL DAT_I	:	STD_LOGIC_VECTOR (15 DOWNTO 8);
 
   signal gpmc_fclk : std_logic; -- runs at 2x speed of gpmc_clk
   -- Clock period definitions
@@ -56,10 +56,10 @@ ARCHITECTURE behavioral OF top_level_schematic_top_level_schematic_sch_tb IS
 
 
   -- Constants for dummy data
-	constant ADDRESS_A 	: std_logic_vector (9 downto 0)	:= "0000000000"; -- address 0 (reg_count)
-	constant ADDRESS_D 	: std_logic_vector (15 downto 0) := "0000000000000000";
-	constant ADDRESS		: std_logic_vector (25 downto 0) := ADDRESS_A & ADDRESS_D;
-	constant DUMMY_DATA	: std_logic_vector (15 downto 0) := "0000000010100011";
+--	constant ADDRESS_A 	: std_logic_vector (9 downto 0)	:= "0000000000"; -- address 0 (reg_count)
+--	constant ADDRESS_D 	: std_logic_vector (15 downto 0) := "0000000000000000";
+--	constant ADDRESS		: std_logic_vector (25 downto 0) := ADDRESS_A & ADDRESS_D;
+--	constant DUMMY_DATA	: std_logic_vector (15 downto 0) := "0000000010100011";
 
 BEGIN
 
@@ -74,8 +74,7 @@ BEGIN
 		gpio_in => gpio_in,
 		gpmc_d => gpmc_d,
 		gpio_o => gpio_o,
-		PRT_O => PRT_O,
-		DAT_I => DAT_I
+		PRT_O => PRT_O
    );
 
    -- Clock process definitions
@@ -143,7 +142,11 @@ BEGIN
      -- TAKES 6 GPMC_FCLK CYCLES
      -- GPMC_FCLK IS AN INTERNAL CLK THAT RUNS AT TWICE THE RATE OF GPMC_CLK
      ------------------------------------------------------------------------
-     report "PERFORMING WRITE OPERATION" severity NOTE;
+		 
+		 ------------------------------------------------------------------------
+		 -- WRITING "0xABBA" TO REGISTER 00
+		 ------------------------------------------------------------------------
+     report "PERFORMING WRITE OPERATION 1" severity NOTE;
      report "---------------------------------------------------------";
      report "time 0 - ARM WRITES";
      gpmc_clk_i <= '0';
@@ -151,8 +154,8 @@ BEGIN
      gpmc_n_we <= '1';
      gpmc_n_oe <= '1';
      gpmc_n_adv_ale <= '1';
-     gpmc_a <= ADDRESS_A;
-     gpmc_d <= ADDRESS_D;
+     gpmc_a <= (others => '0');
+     gpmc_d <= X"0000"; -- addr = 00
      wait for gpmc_fclk_period;
 
      report "time 1";
@@ -161,7 +164,6 @@ BEGIN
      gpmc_n_we <= '1';
      gpmc_n_oe <= '1';
      gpmc_n_adv_ale <= '0';
-     --gpmc_d <= "0000000000000000";
      wait for gpmc_fclk_period;
 
      report "time 2 - FPGA READS ADDR";
@@ -170,7 +172,6 @@ BEGIN
      gpmc_n_we <= '1';
      gpmc_n_oe <= '1';
      gpmc_n_adv_ale <= '0';
-     --gpmc_d <= "0000000000000000";
      wait for gpmc_fclk_period;
 
      report "time 3 - ARM WRITES DATA";
@@ -179,7 +180,7 @@ BEGIN
      gpmc_n_we <= '0';
      gpmc_n_oe <= '1';
      gpmc_n_adv_ale <= '1';
-     gpmc_d <= DUMMY_DATA; -- data being sent to fpga
+     gpmc_d <= x"ABBA";
      wait for gpmc_fclk_period;
 
      report "time 4 - FPGA READS DATA";
@@ -204,20 +205,220 @@ BEGIN
 
      gpmc_clk_i<= '0';
      report "---------------------------------------------------------";
-     wait for gpmc_fclk_period*3;
+     wait for gpmc_fclk_period;
+		 
+		 ------------------------------------------------------------------------
+		 -- WRITING "0xBABE" TO REGISTER 01
+		 ------------------------------------------------------------------------
+		 
+		 report "PERFORMING WRITE OPERATION 2" severity NOTE;
+     report "---------------------------------------------------------";
+     report "time 0 - ARM WRITES";
+     gpmc_clk_i <= '0';
+     gpmc_n_cs <= "1111110";
+     gpmc_n_we <= '1';
+     gpmc_n_oe <= '1';
+     gpmc_n_adv_ale <= '1';
+     gpmc_a <= (others => '0');
+     gpmc_d <= x"0001"; -- addr = 01
+     wait for gpmc_fclk_period;
+
+     report "time 1";
+     gpmc_clk_i <= '0';
+     gpmc_n_cs <= "1111110";
+     gpmc_n_we <= '1';
+     gpmc_n_oe <= '1';
+     gpmc_n_adv_ale <= '0';
+     wait for gpmc_fclk_period;
+
+     report "time 2 - FPGA READS ADDR";
+     gpmc_clk_i <= '1';
+     gpmc_n_cs <="1111110";
+     gpmc_n_we <= '1';
+     gpmc_n_oe <= '1';
+     gpmc_n_adv_ale <= '0';
+     wait for gpmc_fclk_period;
+
+     report "time 3 - ARM WRITES DATA";
+     gpmc_clk_i <= '0';
+     gpmc_n_cs <= "1111110";
+     gpmc_n_we <= '0';
+     gpmc_n_oe <= '1';
+     gpmc_n_adv_ale <= '1';
+     gpmc_d <= x"BABE";
+     wait for gpmc_fclk_period;
+
+     report "time 4 - FPGA READS DATA";
+     gpmc_clk_i <= '1';
+     gpmc_n_cs <= "1111110";
+     gpmc_n_we <= '0';
+     gpmc_n_oe <= '1';
+     gpmc_n_adv_ale <= '1';
+     gpmc_a <= (others => 'X');
+     --gpmc_d <= "0000000010100011";
+     wait for gpmc_fclk_period;
+
+     report "time 5";
+     gpmc_clk_i <= '0';
+     gpmc_n_cs <=  "1111111"; -- select nothing
+     gpmc_n_we <= '1';
+     gpmc_n_oe <= '1';
+     gpmc_n_adv_ale <= '1';
+     gpmc_a <= (others => 'X');
+     gpmc_d <= (others => 'X');
+     wait for gpmc_fclk_period;
+
+     gpmc_clk_i<= '0';
+     report "---------------------------------------------------------";
+     wait for gpmc_fclk_period;
+		 
+		 ------------------------------------------------------------------------
+		 -- WRITING "0xC0DE" TO REGISTER 10
+		 ------------------------------------------------------------------------
+		 
+		 report "PERFORMING WRITE OPERATION 3" severity NOTE;
+     report "---------------------------------------------------------";
+     report "time 0 - ARM WRITES";
+     gpmc_clk_i <= '0';
+     gpmc_n_cs <= "1111110";
+     gpmc_n_we <= '1';
+     gpmc_n_oe <= '1';
+     gpmc_n_adv_ale <= '1';
+     gpmc_a <= (others => '0');
+     gpmc_d <= x"0002";
+     wait for gpmc_fclk_period;
+
+     report "time 1";
+     gpmc_clk_i <= '0';
+     gpmc_n_cs <= "1111110";
+     gpmc_n_we <= '1';
+     gpmc_n_oe <= '1';
+     gpmc_n_adv_ale <= '0';
+     wait for gpmc_fclk_period;
+
+     report "time 2 - FPGA READS ADDR";
+     gpmc_clk_i <= '1';
+     gpmc_n_cs <="1111110";
+     gpmc_n_we <= '1';
+     gpmc_n_oe <= '1';
+     gpmc_n_adv_ale <= '0';
+     wait for gpmc_fclk_period;
+
+     report "time 3 - ARM WRITES DATA";
+     gpmc_clk_i <= '0';
+     gpmc_n_cs <= "1111110";
+     gpmc_n_we <= '0';
+     gpmc_n_oe <= '1';
+     gpmc_n_adv_ale <= '1';
+     gpmc_d <= x"C0DE";
+     wait for gpmc_fclk_period;
+
+     report "time 4 - FPGA READS DATA";
+     gpmc_clk_i <= '1';
+     gpmc_n_cs <= "1111110";
+     gpmc_n_we <= '0';
+     gpmc_n_oe <= '1';
+     gpmc_n_adv_ale <= '1';
+     gpmc_a <= (others => 'X');
+     --gpmc_d <= "0000000010100011";
+     wait for gpmc_fclk_period;
+
+     report "time 5";
+     gpmc_clk_i <= '0';
+     gpmc_n_cs <=  "1111111"; -- select nothing
+     gpmc_n_we <= '1';
+     gpmc_n_oe <= '1';
+     gpmc_n_adv_ale <= '1';
+     gpmc_a <= (others => 'X');
+     gpmc_d <= (others => 'X');
+     wait for gpmc_fclk_period;
+
+     gpmc_clk_i<= '0';
+     report "---------------------------------------------------------";
+     wait for gpmc_fclk_period;
+		 
+		 ------------------------------------------------------------------------
+		 -- WRITING "0xDA7A" TO REGISTER 11
+		 ------------------------------------------------------------------------
+		 
+		 report "PERFORMING WRITE OPERATION 4" severity NOTE;
+     report "---------------------------------------------------------";
+     report "time 0 - ARM WRITES";
+     gpmc_clk_i <= '0';
+     gpmc_n_cs <= "1111110";
+     gpmc_n_we <= '1';
+     gpmc_n_oe <= '1';
+     gpmc_n_adv_ale <= '1';
+     gpmc_a <= (others => '0');
+     gpmc_d <= x"0003";
+     wait for gpmc_fclk_period;
+
+     report "time 1";
+     gpmc_clk_i <= '0';
+     gpmc_n_cs <= "1111110";
+     gpmc_n_we <= '1';
+     gpmc_n_oe <= '1';
+     gpmc_n_adv_ale <= '0';
+     wait for gpmc_fclk_period;
+
+     report "time 2 - FPGA READS ADDR";
+     gpmc_clk_i <= '1';
+     gpmc_n_cs <="1111110";
+     gpmc_n_we <= '1';
+     gpmc_n_oe <= '1';
+     gpmc_n_adv_ale <= '0';
+     wait for gpmc_fclk_period;
+
+     report "time 3 - ARM WRITES DATA";
+     gpmc_clk_i <= '0';
+     gpmc_n_cs <= "1111110";
+     gpmc_n_we <= '0';
+     gpmc_n_oe <= '1';
+     gpmc_n_adv_ale <= '1';
+     gpmc_d <= x"DA7A";
+     wait for gpmc_fclk_period;
+
+     report "time 4 - FPGA READS DATA";
+     gpmc_clk_i <= '1';
+     gpmc_n_cs <= "1111110";
+     gpmc_n_we <= '0';
+     gpmc_n_oe <= '1';
+     gpmc_n_adv_ale <= '1';
+     gpmc_a <= (others => 'X');
+     --gpmc_d <= "0000000010100011";
+     wait for gpmc_fclk_period;
+
+     report "time 5";
+     gpmc_clk_i <= '0';
+     gpmc_n_cs <=  "1111111"; -- select nothing
+     gpmc_n_we <= '1';
+     gpmc_n_oe <= '1';
+     gpmc_n_adv_ale <= '1';
+     gpmc_a <= (others => 'X');
+     gpmc_d <= (others => 'X');
+     wait for gpmc_fclk_period;
+
+     gpmc_clk_i<= '0';
+     report "---------------------------------------------------------";
+     wait for gpmc_fclk_period;
 
 
      ------------------------------------------------------------------------
      -- READ OPERATION
      -- TAKES 8 GPMC_FCLK CYCLES
      ------------------------------------------------------------------------
-     report "READ OPERATION";
+		 
+		 ------------------------------------------------------------------------
+		 -- READING "0xABBA" FROM REGISTER 00
+		 ------------------------------------------------------------------------
+		 
+     report "READ OPERATION 1";
      report "---------------------------------------------------------";
 
      report "time 0 - ARM WRITES ADDRESS";
      gpmc_n_cs <=  "1111110";
-     gpmc_a <= ADDRESS_A; -- address 0 (reg_count)
-     gpmc_d <= ADDRESS_D;
+     gpmc_a <= (others => '0'); 
+     gpmc_d <= X"0000"; -- addr 0
      wait for gpmc_fclk_period;
 
      report "time 1";
@@ -238,17 +439,15 @@ BEGIN
 
      report "time 4 - FPGA WRITES DATA";
      gpmc_clk_i <= '1';
-     --DAT_I <= "000000000000000000000000";
      wait for gpmc_fclk_period;
-     -- CHECK DATA LINE gpmc_d is correct value stored at location 0000000000
-     assert gpmc_d = DUMMY_DATA report "__ERROR: gpmc_d HAS INCORRECT VALUE. IT SHOULD = DUMMY_DATA" severity ERROR;
-     assert gpmc_d /= DUMMY_DATA report "__gpmc_d has correct value" severity NOTE;
+     -- CHECK DATA LINE gpmc_d is correct value
+     assert gpmc_d = x"ABBA" report "__ERROR: gpmc_d HAS INCORRECT VALUE. IT SHOULD = 0xABBA" severity ERROR;
+     assert gpmc_d /= x"ABBA" report "__gpmc_d has correct value" severity NOTE;
 
      report "time 5 - ARM READS DATA";
-     --DAT_I <= "00000000000000000000000000000000";
      gpmc_clk_i <= '0';
      gpmc_n_cs <=  "1111111";
-     gpmc_n_oe <= '0';
+     gpmc_n_oe <= '1';
      wait for gpmc_fclk_period;
 
      report "time 6 - FPGA RELEASES DATA BUS";
@@ -258,6 +457,156 @@ BEGIN
 
      report "time 7";
      gpmc_clk_i <= '0';
+		 
+		 ------------------------------------------------------------------------
+		 -- READING "0xBABE" FROM REGISTER 01
+		 ------------------------------------------------------------------------
+		 
+		 report "READ OPERATION 2";
+     report "---------------------------------------------------------";
+
+     report "time 0 - ARM WRITES ADDRESS";
+     gpmc_n_cs <=  "1111110";
+     gpmc_a <= (others => '0');
+     gpmc_d <= X"0001"; -- addr 1
+     wait for gpmc_fclk_period;
+
+     report "time 1";
+     gpmc_n_adv_ale <= '0';
+     wait for gpmc_fclk_period;
+
+     report "time 2 - FPGA READS ADDRESS";
+     gpmc_clk_i <= '1';
+     wait for gpmc_fclk_period;
+
+     report "time 3 - ARM RELEASES ADDRESS BUS";
+     gpmc_clk_i <= '0';
+     gpmc_n_adv_ale <= '1';
+     gpmc_n_oe <= '0';
+     gpmc_a <= (others => 'X');
+     gpmc_d <= (others => 'Z');
+     wait for gpmc_fclk_period;
+
+     report "time 4 - FPGA WRITES DATA";
+     gpmc_clk_i <= '1';
+     wait for gpmc_fclk_period;
+     -- CHECK DATA LINE gpmc_d is correct value
+     assert gpmc_d = x"BABE" report "__ERROR: gpmc_d HAS INCORRECT VALUE. IT SHOULD = 0xBABE" severity ERROR;
+     assert gpmc_d /= x"BABE" report "__gpmc_d has correct value" severity NOTE;
+
+     report "time 5 - ARM READS DATA";
+     gpmc_clk_i <= '0';
+     gpmc_n_cs <=  "1111111";
+     gpmc_n_oe <= '1';
+     wait for gpmc_fclk_period;
+
+     report "time 6 - FPGA RELEASES DATA BUS";
+     gpmc_clk_i <= '1';
+     gpmc_d <= (others => 'Z'); -- check if this is done by vhdl
+     wait for gpmc_fclk_period;
+
+     report "time 7";
+     gpmc_clk_i <= '0';
+		 
+		 ------------------------------------------------------------------------
+		 -- READING "0xC0DE" FROM REGISTER 10
+		 ------------------------------------------------------------------------
+		 
+		 report "READ OPERATION 3";
+     report "---------------------------------------------------------";
+
+     report "time 0 - ARM WRITES ADDRESS";
+     gpmc_n_cs <=  "1111110";
+     gpmc_a <= (others => '0'); 
+     gpmc_d <= X"0002"; -- addr 2
+     wait for gpmc_fclk_period;
+
+     report "time 1";
+     gpmc_n_adv_ale <= '0';
+     wait for gpmc_fclk_period;
+
+     report "time 2 - FPGA READS ADDRESS";
+     gpmc_clk_i <= '1';
+     wait for gpmc_fclk_period;
+
+     report "time 3 - ARM RELEASES ADDRESS BUS";
+     gpmc_clk_i <= '0';
+     gpmc_n_adv_ale <= '1';
+     gpmc_n_oe <= '0';
+     gpmc_a <= (others => 'X');
+     gpmc_d <= (others => 'Z');
+     wait for gpmc_fclk_period;
+
+     report "time 4 - FPGA WRITES DATA";
+     gpmc_clk_i <= '1';
+     wait for gpmc_fclk_period;
+     -- CHECK DATA LINE gpmc_d is correct value
+     assert gpmc_d = x"C0DE" report "__ERROR: gpmc_d HAS INCORRECT VALUE. IT SHOULD = 0xC0DE" severity ERROR;
+     assert gpmc_d /= x"C0DE" report "__gpmc_d has correct value" severity NOTE;
+
+     report "time 5 - ARM READS DATA";
+     gpmc_clk_i <= '0';
+     gpmc_n_cs <=  "1111111";
+     gpmc_n_oe <= '1';
+     wait for gpmc_fclk_period;
+
+     report "time 6 - FPGA RELEASES DATA BUS";
+     gpmc_clk_i <= '1';
+     gpmc_d <= (others => 'Z'); -- check if this is done by vhdl
+     wait for gpmc_fclk_period;
+
+     report "time 7";
+     gpmc_clk_i <= '0';
+
+		 ------------------------------------------------------------------------
+		 -- READING "0xDA7A" FROM REGISTER 11
+		 ------------------------------------------------------------------------
+
+     report "READ OPERATION 4";
+     report "---------------------------------------------------------";
+
+     report "time 0 - ARM WRITES ADDRESS";
+     gpmc_n_cs <=  "1111110";
+     gpmc_a <= (others => '0'); 
+     gpmc_d <= X"0003"; -- addr 3
+     wait for gpmc_fclk_period;
+
+     report "time 1";
+     gpmc_n_adv_ale <= '0';
+     wait for gpmc_fclk_period;
+
+     report "time 2 - FPGA READS ADDRESS";
+     gpmc_clk_i <= '1';
+     wait for gpmc_fclk_period;
+
+     report "time 3 - ARM RELEASES ADDRESS BUS";
+     gpmc_clk_i <= '0';
+     gpmc_n_adv_ale <= '1';
+     gpmc_n_oe <= '0';
+     gpmc_a <= (others => 'X');
+     gpmc_d <= (others => 'Z');
+     wait for gpmc_fclk_period;
+
+     report "time 4 - FPGA WRITES DATA";
+     gpmc_clk_i <= '1';
+     wait for gpmc_fclk_period;
+     -- CHECK DATA LINE gpmc_d is correct value
+     assert gpmc_d = x"DA7A" report "__ERROR: gpmc_d HAS INCORRECT VALUE. IT SHOULD = 0xDA7A" severity ERROR;
+     assert gpmc_d /= x"DA7A" report "__gpmc_d has correct value" severity NOTE;
+
+     report "time 5 - ARM READS DATA";
+     gpmc_clk_i <= '0';
+     gpmc_n_cs <=  "1111111";
+     gpmc_n_oe <= '1';
+     wait for gpmc_fclk_period;
+
+     report "time 6 - FPGA RELEASES DATA BUS";
+     gpmc_clk_i <= '1';
+     gpmc_d <= (others => 'Z'); -- check if this is done by vhdl
+     wait for gpmc_fclk_period;
+
+     report "time 7";
+     gpmc_clk_i <= '0';		
 
      report "---------------------------------------------------------";
 
